@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel do Usuário - Analisador TAE</title>
+    <style>
+        body { font-family: Arial; background-color: #f4f6f8; margin: 0; display: flex; }
+        nav {
+            width: 240px; background-color: #2c3e50; color: white;
+            height: 100vh; padding: 20px; box-sizing: border-box;
+        }
+        nav h2 { font-size: 1.2em; }
+        nav ul { list-style: none; padding: 0; }
+        nav ul li { margin: 12px 0; cursor: pointer; }
+        nav ul li:hover { text-decoration: underline; }
+
+        main { flex: 1; padding: 30px; }
+        h1 { font-size: 1.5em; }
+        textarea { width: 100%; height: 100px; margin-top: 10px; }
+        select, button { margin-top: 10px; padding: 6px; }
+
+        #resultado, #historico { background-color: white; padding: 20px; margin-top: 20px; border-radius: 6px; }
+        .relatorio-item { margin-bottom: 10px; }
+        .relatorio-item a { margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h2>Usuário: <span id="usuario"></span></h2>
+    <ul>
+        <li onclick="mostrar('executar')">Executar TAE</li>
+        <li onclick="mostrar('historico')">Ver Histórico</li>
+        <li onclick="logout()">Sair</li>
+    </ul>
+</nav>
+
+<main>
+    <div id="executar">
+        <h1>Executar Técnica de Análise</h1>
+        <label for="tecnica">Técnica:</label>
+        <select id="tecnica">
+            <option>ACH</option>
+            <option>PMESIIAT</option>
+            <option>Matriz SWOT</option>
+            <option>Linha do Tempo</option>
+            <option>Análise de Vínculos</option>
+            <option>Advogado do Diabo</option>
+        </select>
+        <br>
+        <label for="problema">Descreva o problema:</label>
+        <textarea id="problema" placeholder="Descreva aqui o problema a ser analisado..."></textarea>
+        <br>
+        <button onclick="executarTAE()">Executar</button>
+        <div id="resultado"></div>
+    </div>
+
+    <div id="historico" style="display:none;">
+        <h1>Histórico de Análises</h1>
+        <div id="historico-lista"></div>
+    </div>
+</main>
+
+<script>
+    const api_url = "https://analisador-tae-api.onrender.com";
+    const token = localStorage.getItem("token");
+    const usuario = localStorage.getItem("usuario");
+    document.getElementById("usuario").innerText = usuario;
+
+    function mostrar(secao) {
+        document.getElementById("executar").style.display = (secao === "executar") ? "block" : "none";
+        document.getElementById("historico").style.display = (secao === "historico") ? "block" : "none";
+        if (secao === "historico") carregarHistorico();
+    }
+
+    function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("usuario");
+        window.location.href = "login_tae.html";
+    }
+
+    function executarTAE() {
+        const tecnica = document.getElementById("tecnica").value;
+        const problema = document.getElementById("problema").value;
+        fetch(`${api_url}/executar-tae`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ tecnica, problema })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const r = document.getElementById("resultado");
+            r.innerHTML = "<h3>Relatório:</h3><p>" + data.resultado + "</p>" +
+                          `<p><a href="\${api_url}/relatorio/docx/\${data.relatorio_docx}" target="_blank">Download DOCX</a> | ` +
+                          `<a href="\${api_url}/relatorio/pdf/\${data.relatorio_pdf}" target="_blank">Download PDF</a></p>`;
+        });
+    }
+
+    function carregarHistorico() {
+        fetch(`${api_url}/historico`, {
+            headers: { "Authorization": "Bearer " + token }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const div = document.getElementById("historico-lista");
+            div.innerHTML = "";
+            data.forEach(item => {
+                div.innerHTML += `
+                    <div class="relatorio-item">
+                        <strong>${item.tecnica}</strong> – ${new Date(item.data).toLocaleString()}
+                        <br><small>${item.problema}</small>
+                        <br>
+                        <a href="\${api_url}/relatorio/docx/\${item.arquivo}" target="_blank">DOCX</a>
+                        <a href="\${api_url}/relatorio/pdf/\${item.arquivo.replace('.docx', '.pdf')}" target="_blank">PDF</a>
+                    </div>
+                `;
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
